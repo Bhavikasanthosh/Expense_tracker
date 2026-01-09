@@ -71,46 +71,50 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 
+// API Base URL
+const API_URL = 'http://localhost:5000/api/transactions';
+
 const salary = ref(parseFloat(localStorage.getItem('userSalary')) || 0);
 const transactions = ref([]);
 const newItem = ref({ title: '', amount: 0, category: 'variable' });
 
-watch(salary, (newVal) => {
-  localStorage.setItem('userSalary', newVal);
-});
+watch(salary, (newVal) => localStorage.setItem('userSalary', newVal));
 
 const fetchTransactions = async () => {
   try {
-    // We use the direct IP to avoid 'localhost' resolution issues on Mac
-    const response = await axios.get('http://127.0.0.1:5000/api/transactions');
+    const response = await axios.get(API_URL);
     transactions.value = response.data;
   } catch (error) {
-    console.error("Connection failed");
+    console.error("Fetch Error:", error.response || error);
   }
 };
 
+onMounted(fetchTransactions);
+
 const submitExpense = async () => {
-  if (newItem.value.title && newItem.value.amount > 0) {
-    try {
-      const response = await axios.post('http://127.0.0.1:5000/api/transactions', {
-        title: newItem.value.title,
-        amount: newItem.value.amount,
-        category: newItem.value.category
-      });
-      transactions.value.unshift(response.data);
-      newItem.value = { title: '', amount: 0, category: 'variable' };
-    } catch (error) {
-      alert("Browser is STILL blocking the connection. Check the Console!");
-    }
+  if (!newItem.value.title || newItem.value.amount <= 0) return;
+  
+  try {
+    const response = await axios.post(API_URL, {
+      title: newItem.value.title,
+      amount: newItem.value.amount,
+      category: newItem.value.category
+    });
+    transactions.value.unshift(response.data);
+    newItem.value = { title: '', amount: 0, category: 'variable' };
+  } catch (error) {
+    console.error("Post Error:", error.response || error);
+    alert("Connection failed! Check the browser console for details.");
   }
 };
 
 const deleteTransaction = async (id) => {
+  if (!confirm("Delete this?")) return;
   try {
-    await axios.delete(`http://localhost:5000/api/transactions/${id}`);
+    await axios.delete(`${API_URL}/${id}`);
     transactions.value = transactions.value.filter(t => t._id !== id);
   } catch (error) {
-    console.error("Delete failed");
+    console.error("Delete Error:", error);
   }
 };
 
